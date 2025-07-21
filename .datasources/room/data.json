@@ -1,0 +1,12 @@
+
+  [
+    {
+      "_id": "1",
+      "roomId": "room-abc123",
+      "createdBy": "小美",
+      "members": ["小美", "小明"],
+      "createdAt": 1626847200000,
+      "updatedAt": 1626847200000
+    }
+  ]
+  

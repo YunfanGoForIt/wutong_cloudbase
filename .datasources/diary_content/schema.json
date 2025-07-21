@@ -1,0 +1,33 @@
+
+  {
+    "name": "diary_content",
+    "title": "日记内容",
+    "schemas": [
+      {
+        "name": "roomId",
+        "title": "房间ID",
+        "type": "String"
+      },
+      {
+        "name": "type",
+        "title": "类型",
+        "type": "String"
+      },
+      {
+        "name": "author",
+        "title": "作者",
+        "type": "String"
+      },
+      {
+        "name": "content",
+        "title": "内容",
+        "type": "String"
+      },
+      {
+        "name": "caption",
+        "title": "描述",
+        "type": "String"
+      }
+    ]
+  }
+  

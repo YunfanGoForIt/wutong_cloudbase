@@ -1,0 +1,26 @@
+
+  {
+    "name": "room",
+    "title": "房间",
+    "schemas": [
+      {
+        "name": "roomId",
+        "title": "房间ID",
+        "type": "String"
+      },
+      {
+        "name": "createdBy",
+        "title": "创建者",
+        "type": "String"
+      },
+      {
+        "name": "members",
+        "title": "成员",
+        "type": "Array",
+        "items": {
+          "type": "String"
+        }
+      }
+    ]
+  }
+  

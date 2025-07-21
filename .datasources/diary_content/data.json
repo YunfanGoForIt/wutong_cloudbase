@@ -1,0 +1,23 @@
+
+  [
+    {
+      "_id": "1",
+      "roomId": "room-abc123",
+      "type": "text",
+      "author": "小美",
+      "content": "今天和亲爱的去了海边，夕阳特别美~",
+      "createdAt": 1626847200000,
+      "updatedAt": 1626847200000
+    },
+    {
+      "_id": "2",
+      "roomId": "room-abc123",
+      "type": "image",
+      "author": "小明",
+      "content": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+      "caption": "海边的夕阳",
+      "createdAt": 1626847200000,
+      "updatedAt": 1626847200000
+    }
+  ]
+  
