@@ -1,155 +1,36 @@
 // @ts-ignore;
 import React, { useState } from 'react';
 // @ts-ignore;
-import { Input, Button, Card, CardHeader, CardTitle, CardContent, CardFooter, useToast } from '@/components/ui';
+import { Input, Button, Card, useToast } from '@/components/ui';
 // @ts-ignore;
-import { LogIn, UserPlus, DoorOpen, PlusCircle } from 'lucide-react';
+import { LogIn, UserPlus } from 'lucide-react';
 
 export default function HomePage(props) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [isLogin, setIsLogin] = useState(true);
-  const [roomId, setRoomId] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loading, setLoading] = useState(false);
   const {
     $w
   } = props;
   const {
     toast
   } = useToast();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLogin, setIsLogin] = useState(true);
   const handleAuth = async () => {
     try {
-      setLoading(true);
-      if (!email || !password) {
-        toast({
-          title: '错误',
-          description: '请输入邮箱和密码',
-          variant: 'destructive'
-        });
-        return;
-      }
-      if (!isLogin && !username) {
-        toast({
-          title: '错误',
-          description: '请输入用户名',
-          variant: 'destructive'
-        });
-        return;
-      }
-      if (isLogin) {
-        // 登录逻辑
-        const result = await $w.cloud.callDataSource({
-          dataSourceName: 'user',
-          methodName: 'wedaGetRecordsV2',
-          params: {
-            filter: {
-              where: {
-                email: {
-                  $eq: email
-                },
-                password: {
-                  $eq: password
-                }
-              }
-            },
-            select: {
-              $master: true
-            },
-            pageSize: 1
-          }
-        });
-        if (result.records.length === 0) {
-          toast({
-            title: '登录失败',
-            description: '邮箱或密码不正确',
-            variant: 'destructive'
-          });
-          return;
-        }
-        setIsLoggedIn(true);
-        toast({
-          title: '登录成功',
-          description: `欢迎回来，${result.records[0].username || '用户'}`
-        });
-      } else {
-        // 注册逻辑
-        // 先检查邮箱是否已存在
-        const checkResult = await $w.cloud.callDataSource({
-          dataSourceName: 'user',
-          methodName: 'wedaGetRecordsV2',
-          params: {
-            filter: {
-              where: {
-                email: {
-                  $eq: email
-                }
-              }
-            },
-            select: {
-              $master: true
-            },
-            pageSize: 1
-          }
-        });
-        if (checkResult.records.length > 0) {
-          toast({
-            title: '注册失败',
-            description: '该邮箱已被注册',
-            variant: 'destructive'
-          });
-          return;
-        }
-
-        // 创建新用户
-        const createResult = await $w.cloud.callDataSource({
-          dataSourceName: 'user',
-          methodName: 'wedaCreateV2',
-          params: {
-            data: {
-              username,
-              email,
-              password,
-              roomId: ''
-            }
-          }
-        });
-        setIsLoggedIn(true);
-        toast({
-          title: '注册成功',
-          description: `欢迎加入，${username}`
-        });
-      }
-    } catch (error) {
-      toast({
-        title: '错误',
-        description: error.message,
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-  const handleJoinRoom = async () => {
-    if (!roomId.trim()) {
-      toast({
-        title: '错误',
-        description: '请输入房间ID',
-        variant: 'destructive'
-      });
-      return;
-    }
-    try {
-      // 检查房间是否存在
-      const roomResult = await $w.cloud.callDataSource({
-        dataSourceName: 'room',
-        methodName: 'wedaGetRecordsV2',
-        params: {
+      // 1. 调用user数据模型进行验证
+      const result = await $w.cloud.callDataSource({
+        dataSourceName: 'user',
+        // 数据模型名称
+        methodName: isLogin ? 'wedaGetRecordsV2' : 'wedaCreateV2',
+        params: isLogin ? {
+          // 登录查询条件
           filter: {
             where: {
-              _id: {
-                $eq: roomId
+              email: {
+                $eq: email
+              },
+              password: {
+                $eq: password
               }
             }
           },
@@ -157,39 +38,35 @@ export default function HomePage(props) {
             $master: true
           },
           pageSize: 1
+        } : {
+          // 注册创建数据
+          data: {
+            email,
+            password,
+            createdAt: new Date().getTime()
+          }
         }
       });
-      if (roomResult.records.length === 0) {
+
+      // 2. 处理返回结果
+      if (isLogin) {
+        if (result.records.length === 0) {
+          throw new Error('邮箱或密码错误');
+        }
         toast({
-          title: '错误',
-          description: '房间不存在',
-          variant: 'destructive'
+          title: '登录成功'
         });
-        return;
+      } else {
+        toast({
+          title: '注册成功'
+        });
       }
 
-      // 更新用户房间信息
-      await $w.cloud.callDataSource({
-        dataSourceName: 'user',
-        methodName: 'wedaUpdateV2',
-        params: {
-          data: {
-            roomId: roomId
-          },
-          filter: {
-            where: {
-              email: {
-                $eq: email
-              }
-            }
-          }
-        }
-      });
-      localStorage.setItem('currentRoom', roomId);
+      // 3. 跳转到房间页面
       $w.utils.navigateTo({
         pageId: 'room',
         params: {
-          roomId
+          userId: isLogin ? result.records[0]._id : result.id
         }
       });
     } catch (error) {
@@ -200,117 +77,25 @@ export default function HomePage(props) {
       });
     }
   };
-  const handleCreateRoom = async () => {
-    try {
-      // 创建新房间
-      const roomResult = await $w.cloud.callDataSource({
-        dataSourceName: 'room',
-        methodName: 'wedaCreateV2',
-        params: {
-          data: {
-            name: '情侣日记房间',
-            creator: email
-          }
-        }
-      });
-
-      // 更新用户房间信息
-      await $w.cloud.callDataSource({
-        dataSourceName: 'user',
-        methodName: 'wedaUpdateV2',
-        params: {
-          data: {
-            roomId: roomResult.id
-          },
-          filter: {
-            where: {
-              email: {
-                $eq: email
-              }
-            }
-          }
-        }
-      });
-      localStorage.setItem('currentRoom', roomResult.id);
-      $w.utils.navigateTo({
-        pageId: 'room',
-        params: {
-          roomId: roomResult.id
-        }
-      });
-    } catch (error) {
-      toast({
-        title: '错误',
-        description: error.message,
-        variant: 'destructive'
-      });
-    }
-  };
-  if (!isLoggedIn) {
-    return <div className="min-h-screen bg-gradient-to-br from-pink-100 to-pink-200 flex items-center justify-center p-4">
+  return <div className="min-h-screen bg-gradient-to-br from-pink-100 to-pink-200 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-center text-2xl font-bold text-pink-600">
+        <Card.Header>
+          <Card.Title className="text-center text-2xl font-bold text-pink-600">
             {isLogin ? '登录' : '注册'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!isLogin && <div>
-            <label htmlFor="username" className="block text-gray-700 font-medium mb-2">用户名</label>
-            <Input id="username" placeholder="输入用户名" value={username} onChange={e => setUsername(e.target.value)} className="w-full" />
-          </div>}
+          </Card.Title>
+        </Card.Header>
+        <Card.Content className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-gray-700 font-medium mb-2">邮箱</label>
-            <Input id="email" type="email" placeholder="输入邮箱" value={email} onChange={e => setEmail(e.target.value)} className="w-full" />
+            <Input type="email" placeholder="邮箱" value={email} onChange={e => setEmail(e.target.value)} className="w-full" />
           </div>
           <div>
-            <label htmlFor="password" className="block text-gray-700 font-medium mb-2">密码</label>
-            <Input id="password" type="password" placeholder="输入密码" value={password} onChange={e => setPassword(e.target.value)} className="w-full" />
+            <Input type="password" placeholder="密码" value={password} onChange={e => setPassword(e.target.value)} className="w-full" />
           </div>
-          <Button onClick={handleAuth} className="w-full bg-pink-500 hover:bg-pink-600" disabled={loading}>
-            {loading ? <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                {isLogin ? '登录中...' : '注册中...'}
-              </div> : <>
-                {isLogin ? <LogIn className="mr-2 h-4 w-4" /> : <UserPlus className="mr-2 h-4 w-4" />}
-                {isLogin ? '登录' : '注册'}
-              </>}
+          <Button onClick={handleAuth} className="w-full bg-pink-500 hover:bg-pink-600">
+            {isLogin ? <LogIn className="mr-2" /> : <UserPlus className="mr-2" />}
+            {isLogin ? '登录' : '注册'}
           </Button>
-          <div className="text-center text-sm text-gray-600">
-            {isLogin ? '没有账号？' : '已有账号？'}
-            <button onClick={() => setIsLogin(!isLogin)} className="ml-1 text-pink-500 hover:text-pink-600 font-medium" disabled={loading}>
-              {isLogin ? '立即注册' : '立即登录'}
-            </button>
-          </div>
-        </CardContent>
+        </Card.Content>
       </Card>
     </div>;
-  }
-  return <div className="min-h-screen bg-gradient-to-br from-pink-100 to-pink-200 flex items-center justify-center p-4">
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle className="text-center text-2xl font-bold text-pink-600">情侣日记</CardTitle>
-        <p className="text-center text-gray-600 mt-2">与爱人共享美好时光</p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <label htmlFor="roomId" className="block text-gray-700 font-medium mb-2">房间ID</label>
-          <Input id="roomId" placeholder="输入房间ID" value={roomId} onChange={e => setRoomId(e.target.value)} className="w-full" />
-        </div>
-        <div className="flex flex-col space-y-4">
-          <Button onClick={handleJoinRoom} className="bg-pink-500 hover:bg-pink-600">
-            <DoorOpen className="mr-2 h-4 w-4" /> 加入房间
-          </Button>
-          <Button onClick={handleCreateRoom} variant="outline" className="border-pink-500 text-pink-500 hover:bg-pink-50">
-            <PlusCircle className="mr-2 h-4 w-4" /> 创建新房间
-          </Button>
-        </div>
-      </CardContent>
-      <CardFooter className="justify-center">
-        <button onClick={() => setIsLoggedIn(false)} className="text-sm text-pink-500 hover:text-pink-600 font-medium">
-          退出登录
-        </button>
-      </CardFooter>
-    </Card>
-  </div>;
 }
