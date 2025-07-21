@@ -8,9 +8,11 @@ import { LogIn, UserPlus, DoorOpen, PlusCircle } from 'lucide-react';
 export default function HomePage(props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [roomId, setRoomId] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(false);
   const {
     $w
   } = props;
@@ -19,6 +21,7 @@ export default function HomePage(props) {
   } = useToast();
   const handleAuth = async () => {
     try {
+      setLoading(true);
       if (!email || !password) {
         toast({
           title: '错误',
@@ -27,47 +30,105 @@ export default function HomePage(props) {
         });
         return;
       }
-
-      // 调用用户数据模型验证登录
-      const userResult = await $w.cloud.callDataSource({
-        dataSourceName: 'user',
-        methodName: 'wedaGetRecordsV2',
-        params: {
-          filter: {
-            where: {
-              email: {
-                $eq: email
-              },
-              password: {
-                $eq: password
-              }
-            }
-          },
-          select: {
-            $master: true
-          },
-          pageSize: 1
-        }
-      });
-      if (userResult.records.length === 0) {
+      if (!isLogin && !username) {
         toast({
           title: '错误',
-          description: '邮箱或密码不正确',
+          description: '请输入用户名',
           variant: 'destructive'
         });
         return;
       }
-      setIsLoggedIn(true);
-      toast({
-        title: '成功',
-        description: isLogin ? '登录成功' : '注册成功'
-      });
+      if (isLogin) {
+        // 登录逻辑
+        const result = await $w.cloud.callDataSource({
+          dataSourceName: 'user',
+          methodName: 'wedaGetRecordsV2',
+          params: {
+            filter: {
+              where: {
+                email: {
+                  $eq: email
+                },
+                password: {
+                  $eq: password
+                }
+              }
+            },
+            select: {
+              $master: true
+            },
+            pageSize: 1
+          }
+        });
+        if (result.records.length === 0) {
+          toast({
+            title: '登录失败',
+            description: '邮箱或密码不正确',
+            variant: 'destructive'
+          });
+          return;
+        }
+        setIsLoggedIn(true);
+        toast({
+          title: '登录成功',
+          description: `欢迎回来，${result.records[0].username || '用户'}`
+        });
+      } else {
+        // 注册逻辑
+        // 先检查邮箱是否已存在
+        const checkResult = await $w.cloud.callDataSource({
+          dataSourceName: 'user',
+          methodName: 'wedaGetRecordsV2',
+          params: {
+            filter: {
+              where: {
+                email: {
+                  $eq: email
+                }
+              }
+            },
+            select: {
+              $master: true
+            },
+            pageSize: 1
+          }
+        });
+        if (checkResult.records.length > 0) {
+          toast({
+            title: '注册失败',
+            description: '该邮箱已被注册',
+            variant: 'destructive'
+          });
+          return;
+        }
+
+        // 创建新用户
+        const createResult = await $w.cloud.callDataSource({
+          dataSourceName: 'user',
+          methodName: 'wedaCreateV2',
+          params: {
+            data: {
+              username,
+              email,
+              password,
+              roomId: ''
+            }
+          }
+        });
+        setIsLoggedIn(true);
+        toast({
+          title: '注册成功',
+          description: `欢迎加入，${username}`
+        });
+      }
     } catch (error) {
       toast({
         title: '错误',
         description: error.message,
         variant: 'destructive'
       });
+    } finally {
+      setLoading(false);
     }
   };
   const handleJoinRoom = async () => {
@@ -194,6 +255,10 @@ export default function HomePage(props) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {!isLogin && <div>
+            <label htmlFor="username" className="block text-gray-700 font-medium mb-2">用户名</label>
+            <Input id="username" placeholder="输入用户名" value={username} onChange={e => setUsername(e.target.value)} className="w-full" />
+          </div>}
           <div>
             <label htmlFor="email" className="block text-gray-700 font-medium mb-2">邮箱</label>
             <Input id="email" type="email" placeholder="输入邮箱" value={email} onChange={e => setEmail(e.target.value)} className="w-full" />
@@ -202,13 +267,18 @@ export default function HomePage(props) {
             <label htmlFor="password" className="block text-gray-700 font-medium mb-2">密码</label>
             <Input id="password" type="password" placeholder="输入密码" value={password} onChange={e => setPassword(e.target.value)} className="w-full" />
           </div>
-          <Button onClick={handleAuth} className="w-full bg-pink-500 hover:bg-pink-600">
-            {isLogin ? <LogIn className="mr-2 h-4 w-4" /> : <UserPlus className="mr-2 h-4 w-4" />}
-            {isLogin ? '登录' : '注册'}
+          <Button onClick={handleAuth} className="w-full bg-pink-500 hover:bg-pink-600" disabled={loading}>
+            {loading ? <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                {isLogin ? '登录中...' : '注册中...'}
+              </div> : <>
+                {isLogin ? <LogIn className="mr-2 h-4 w-4" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                {isLogin ? '登录' : '注册'}
+              </>}
           </Button>
           <div className="text-center text-sm text-gray-600">
             {isLogin ? '没有账号？' : '已有账号？'}
-            <button onClick={() => setIsLogin(!isLogin)} className="ml-1 text-pink-500 hover:text-pink-600 font-medium">
+            <button onClick={() => setIsLogin(!isLogin)} className="ml-1 text-pink-500 hover:text-pink-600 font-medium" disabled={loading}>
               {isLogin ? '立即注册' : '立即登录'}
             </button>
           </div>
