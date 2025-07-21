@@ -1,0 +1,28 @@
+
+  {
+    "name": "user",
+    "title": "用户",
+    "schemas": [
+      {
+        "name": "username",
+        "title": "用户名",
+        "type": "String"
+      },
+      {
+        "name": "email",
+        "title": "邮箱",
+        "type": "String"
+      },
+      {
+        "name": "password",
+        "title": "密码",
+        "type": "String"
+      },
+      {
+        "name": "roomId",
+        "title": "绑定的房间ID",
+        "type": "String"
+      }
+    ]
+  }
+  

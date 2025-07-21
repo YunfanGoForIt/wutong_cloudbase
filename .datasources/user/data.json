@@ -1,0 +1,22 @@
+
+  [
+    {
+      "_id": "1",
+      "username": "小美",
+      "email": "xiaomei@example.com",
+      "password": "hashed_password_123",
+      "roomId": "room-abc123",
+      "createdAt": 1626847200000,
+      "updatedAt": 1626847200000
+    },
+    {
+      "_id": "2",
+      "username": "小明",
+      "email": "xiaoming@example.com",
+      "password": "hashed_password_456",
+      "roomId": "room-abc123",
+      "createdAt": 1626847200000,
+      "updatedAt": 1626847200000
+    }
+  ]
+  

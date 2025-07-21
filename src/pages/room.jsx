@@ -15,48 +15,134 @@ export default function RoomPage(props) {
   const [roomId, setRoomId] = useState('');
   const [contents, setContents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userInfo, setUserInfo] = useState(null);
   useEffect(() => {
-    const currentRoomId = $w.page.dataset.params?.roomId || localStorage.getItem('currentRoom') || '';
-    setRoomId(currentRoomId);
-    fetchRoomContents(currentRoomId);
-  }, [$w.page.dataset.params]);
-  const fetchRoomContents = async roomId => {
+    // 检查用户是否登录
+    if (!$w.auth.currentUser) {
+      toast({
+        title: '请先登录',
+        description: '您需要登录后才能访问房间',
+        variant: 'destructive'
+      });
+      $w.utils.redirectTo({
+        pageId: 'index'
+      });
+      return;
+    }
+
+    // 获取用户信息和房间信息
+    const fetchUserAndRoom = async () => {
+      try {
+        setLoading(true);
+        // 获取用户信息
+        const userResult = await $w.cloud.callDataSource({
+          dataSourceName: 'user',
+          methodName: 'wedaGetItemV2',
+          params: {
+            filter: {
+              where: {
+                email: {
+                  $eq: $w.auth.currentUser.email
+                }
+              }
+            },
+            select: {
+              $master: true
+            }
+          }
+        });
+        if (!userResult) {
+          toast({
+            title: '错误',
+            description: '用户信息不存在',
+            variant: 'destructive'
+          });
+          $w.utils.redirectTo({
+            pageId: 'index'
+          });
+          return;
+        }
+        setUserInfo(userResult);
+        const currentRoomId = userResult.roomId || $w.page.dataset.params?.roomId || '';
+        if (!currentRoomId) {
+          toast({
+            title: '错误',
+            description: '您尚未绑定任何房间',
+            variant: 'destructive'
+          });
+          $w.utils.redirectTo({
+            pageId: 'index'
+          });
+          return;
+        }
+        setRoomId(currentRoomId);
+        localStorage.setItem('currentRoom', currentRoomId);
+
+        // 获取房间内容
+        const roomResult = await $w.cloud.callDataSource({
+          dataSourceName: 'diary_content',
+          methodName: 'wedaGetRecordsV2',
+          params: {
+            filter: {
+              where: {
+                roomId: {
+                  $eq: currentRoomId
+                }
+              }
+            },
+            select: {
+              $master: true
+            },
+            getCount: true,
+            pageSize: 100
+          }
+        });
+        setContents(roomResult.records || []);
+      } catch (error) {
+        toast({
+          title: '加载失败',
+          description: error.message,
+          variant: 'destructive'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUserAndRoom();
+  }, [$w.auth.currentUser, $w.page.dataset.params]);
+  const handleLeaveRoom = async () => {
     try {
       setLoading(true);
-      const result = await $w.cloud.callDataSource({
-        dataSourceName: 'diary_content',
-        methodName: 'wedaGetRecordsV2',
+      // 更新用户房间信息
+      await $w.cloud.callDataSource({
+        dataSourceName: 'user',
+        methodName: 'wedaUpdateV2',
         params: {
+          data: {
+            roomId: ''
+          },
           filter: {
             where: {
-              roomId: {
-                $eq: roomId
+              email: {
+                $eq: $w.auth.currentUser.email
               }
             }
-          },
-          select: {
-            $master: true
-          },
-          getCount: true,
-          pageSize: 100
+          }
         }
       });
-      setContents(result.records || []);
+      localStorage.removeItem('currentRoom');
+      $w.utils.redirectTo({
+        pageId: 'index'
+      });
     } catch (error) {
       toast({
-        title: '加载失败',
+        title: '操作失败',
         description: error.message,
         variant: 'destructive'
       });
     } finally {
       setLoading(false);
     }
-  };
-  const handleLeaveRoom = () => {
-    localStorage.removeItem('currentRoom');
-    $w.utils.navigateTo({
-      pageId: 'index'
-    });
   };
   const handleAddText = () => {
     $w.utils.navigateTo({
@@ -100,8 +186,11 @@ export default function RoomPage(props) {
       <div className="bg-white rounded-xl shadow-lg max-w-md mx-auto overflow-hidden">
         {/* 顶部导航 */}
         <div className="bg-pink-500 text-white p-4 flex justify-between items-center">
-          <h2 className="text-xl font-bold">房间: {roomId}</h2>
-          <Button variant="ghost" size="icon" onClick={handleLeaveRoom} className="text-white hover:bg-pink-600">
+          <div>
+            <h2 className="text-xl font-bold">房间: {roomId}</h2>
+            {userInfo && <p className="text-sm opacity-80">欢迎, {userInfo.username}</p>}
+          </div>
+          <Button variant="ghost" size="icon" onClick={handleLeaveRoom} className="text-white hover:bg-pink-600" disabled={loading}>
             <LogOut className="h-5 w-5" />
           </Button>
         </div>
