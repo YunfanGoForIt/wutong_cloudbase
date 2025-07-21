@@ -19,7 +19,6 @@ export default function HomePage(props) {
   } = useToast();
   const handleAuth = async () => {
     try {
-      // 模拟登录/注册
       if (!email || !password) {
         toast({
           title: '错误',
@@ -29,7 +28,35 @@ export default function HomePage(props) {
         return;
       }
 
-      // 这里应该调用实际的登录/注册API
+      // 调用用户数据模型验证登录
+      const userResult = await $w.cloud.callDataSource({
+        dataSourceName: 'user',
+        methodName: 'wedaGetRecordsV2',
+        params: {
+          filter: {
+            where: {
+              email: {
+                $eq: email
+              },
+              password: {
+                $eq: password
+              }
+            }
+          },
+          select: {
+            $master: true
+          },
+          pageSize: 1
+        }
+      });
+      if (userResult.records.length === 0) {
+        toast({
+          title: '错误',
+          description: '邮箱或密码不正确',
+          variant: 'destructive'
+        });
+        return;
+      }
       setIsLoggedIn(true);
       toast({
         title: '成功',
@@ -43,8 +70,60 @@ export default function HomePage(props) {
       });
     }
   };
-  const handleJoinRoom = () => {
-    if (roomId.trim()) {
+  const handleJoinRoom = async () => {
+    if (!roomId.trim()) {
+      toast({
+        title: '错误',
+        description: '请输入房间ID',
+        variant: 'destructive'
+      });
+      return;
+    }
+    try {
+      // 检查房间是否存在
+      const roomResult = await $w.cloud.callDataSource({
+        dataSourceName: 'room',
+        methodName: 'wedaGetRecordsV2',
+        params: {
+          filter: {
+            where: {
+              _id: {
+                $eq: roomId
+              }
+            }
+          },
+          select: {
+            $master: true
+          },
+          pageSize: 1
+        }
+      });
+      if (roomResult.records.length === 0) {
+        toast({
+          title: '错误',
+          description: '房间不存在',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // 更新用户房间信息
+      await $w.cloud.callDataSource({
+        dataSourceName: 'user',
+        methodName: 'wedaUpdateV2',
+        params: {
+          data: {
+            roomId: roomId
+          },
+          filter: {
+            where: {
+              email: {
+                $eq: email
+              }
+            }
+          }
+        }
+      });
       localStorage.setItem('currentRoom', roomId);
       $w.utils.navigateTo({
         pageId: 'room',
@@ -52,23 +131,59 @@ export default function HomePage(props) {
           roomId
         }
       });
-    } else {
+    } catch (error) {
       toast({
         title: '错误',
-        description: '请输入房间ID',
+        description: error.message,
         variant: 'destructive'
       });
     }
   };
-  const handleCreateRoom = () => {
-    const newRoomId = 'room-' + Math.random().toString(36).substr(2, 8);
-    localStorage.setItem('currentRoom', newRoomId);
-    $w.utils.navigateTo({
-      pageId: 'room',
-      params: {
-        roomId: newRoomId
-      }
-    });
+  const handleCreateRoom = async () => {
+    try {
+      // 创建新房间
+      const roomResult = await $w.cloud.callDataSource({
+        dataSourceName: 'room',
+        methodName: 'wedaCreateV2',
+        params: {
+          data: {
+            name: '情侣日记房间',
+            creator: email
+          }
+        }
+      });
+
+      // 更新用户房间信息
+      await $w.cloud.callDataSource({
+        dataSourceName: 'user',
+        methodName: 'wedaUpdateV2',
+        params: {
+          data: {
+            roomId: roomResult.id
+          },
+          filter: {
+            where: {
+              email: {
+                $eq: email
+              }
+            }
+          }
+        }
+      });
+      localStorage.setItem('currentRoom', roomResult.id);
+      $w.utils.navigateTo({
+        pageId: 'room',
+        params: {
+          roomId: roomResult.id
+        }
+      });
+    } catch (error) {
+      toast({
+        title: '错误',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
   };
   if (!isLoggedIn) {
     return <div className="min-h-screen bg-gradient-to-br from-pink-100 to-pink-200 flex items-center justify-center p-4">
