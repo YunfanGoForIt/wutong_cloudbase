@@ -1,22 +1,30 @@
 // @ts-ignore;
 import React, { useState } from 'react';
 // @ts-ignore;
-import { Input, Button, Card, useToast } from '@/components/ui';
+import { Input, Button, Card, CardHeader, CardTitle, CardContent, useToast } from '@/components/ui';
 // @ts-ignore;
 import { LogIn, UserPlus } from 'lucide-react';
 
 export default function HomePage(props) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLogin, setIsLogin] = useState(true);
   const {
     $w
   } = props;
   const {
     toast
   } = useToast();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLogin, setIsLogin] = useState(true);
   const handleAuth = async () => {
     try {
+      if (!email || !password) {
+        toast({
+          title: '错误',
+          description: '请输入邮箱和密码',
+          variant: 'destructive'
+        });
+        return;
+      }
       // 1. 调用user数据模型进行验证
       const result = await $w.cloud.callDataSource({
         dataSourceName: 'user',
@@ -79,23 +87,23 @@ export default function HomePage(props) {
   };
   return <div className="min-h-screen bg-gradient-to-br from-pink-100 to-pink-200 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
-        <Card.Header>
-          <Card.Title className="text-center text-2xl font-bold text-pink-600">
+        <CardHeader>
+          <CardTitle className="text-center text-2xl font-bold text-pink-600">
             {isLogin ? '登录' : '注册'}
-          </Card.Title>
-        </Card.Header>
-        <Card.Content className="space-y-4">
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div>
             <Input type="email" placeholder="邮箱" value={email} onChange={e => setEmail(e.target.value)} className="w-full" />
           </div>
           <div>
             <Input type="password" placeholder="密码" value={password} onChange={e => setPassword(e.target.value)} className="w-full" />
           </div>
-          <Button onClick={handleAuth} className="w-full bg-pink-500 hover:bg-pink-600">
-            {isLogin ? <LogIn className="mr-2" /> : <UserPlus className="mr-2" />}
+          <Button onClick={handleAuth} className="w-full bg-pink-500 hover:bg-pink-600 text-white">
+            {isLogin ? <LogIn className="mr-2 h-4 w-4" /> : <UserPlus className="mr-2 h-4 w-4" />}
             {isLogin ? '登录' : '注册'}
           </Button>
-        </Card.Content>
+        </CardContent>
       </Card>
     </div>;
 }
